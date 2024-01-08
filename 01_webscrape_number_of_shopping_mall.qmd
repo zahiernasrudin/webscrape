@@ -1,0 +1,118 @@
+---
+title: "Webscraping: Shopping Malls in Malaysia"
+format: 
+  html:
+    embed-resources: true
+editor: visual
+message: false
+warning: false
+---
+
+## Purpose/Problem
+
+To gather information on the number of shopping malls in Malaysia, I'll webscrape data from the Wikipedia website.
+
+### Scope
+
+-   Using this website from [Wikipedia](https://en.wikipedia.org/wiki/List_of_shopping_malls_in_Malaysia)
+
+## Data Extraction
+
+-   Using this website from [Wikipedia](https://en.wikipedia.org/wiki/List_of_shopping_malls_in_Malaysia)
+
+-   Method: Webscraping using `rvest` from R
+
+### Load library
+
+```{r}
+
+library(tidyverse)
+library(rvest)
+library(polite)
+```
+
+### Specify url & read the html
+
+```{r}
+
+url <- "https://en.wikipedia.org/wiki/List_of_shopping_malls_in_Malaysia"
+url_bow <- polite::bow(url)
+url_bow
+
+webpage <- scrape(url_bow)
+```
+
+### Identify & select HTML elements
+
+```{r}
+
+# Extract and store text content from li nodes (Wikipedia).
+shopping_mall = webpage %>%
+  html_nodes("body #content #bodyContent #mw-content-text .mw-parser-output ul li") %>%
+  html_text() %>%
+  as.character()
+
+
+```
+
+### Define a function to generate tibble (data frame)
+
+```{r}
+
+
+# Define a function to generate a tibble for a state with a subset of data from shopping_mall based on indices.
+function_state <- function(State, List) {
+  
+  tibble(State = State,
+         List = shopping_mall[eval(parse(text = List))])
+  
+}
+
+# List of states with associated index ranges.
+state_list <- c(
+  "W.P Kuala Lumpur" = "1:85",
+  "W.P Labuan" = "86:87",
+  "W.P Putrajaya" = "88:90",
+  "Johor" = "91:137",
+  "Kedah" = "138:152",
+  "Kelantan" = "153:157",
+  "Melaka" = "158:171",
+  "Negeri Sembilan" = "172:183",
+  "Pahang" = "184:200",
+  "Pulau Pinang" = "201:229",
+  "Perak" = "230:246",
+  "Sabah" = "247:268",
+  "Sarawak" = "269:334",
+  "Selangor" = "335:418",
+  "Terengganu" = "419:423"
+)
+
+
+# Convert the named vector to a data frame with two columns
+state_list_df <- enframe(state_list, name = "state", value = "indices")
+
+
+# Data frame containing each state and its associated subset data from shopping_mall.
+state_df <- pmap_df(.l = list(State = state_list_df$state, Indices = state_list_df$indices),
+                    .f = ~ function_state(..1, ..2))
+
+
+
+```
+
+## Clean data
+
+```{r}
+
+state_df2 <- state_df %>%
+  mutate(List_clean = str_replace_all(List, "\\[.*?\\]", ""))
+```
+
+## Export
+
+```{r}
+
+dir.create("file")
+
+write_csv(state_df2, "file/list.csv")
+```
