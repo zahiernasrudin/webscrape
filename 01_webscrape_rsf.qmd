@@ -1,0 +1,77 @@
+---
+title: "Extract"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+editor: visual
+---
+
+## Load library
+
+```{r, warning = F, message = F}
+
+library(rvest)
+library(tidyverse)
+library(polite)
+library(here)
+
+```
+
+### Specify url & read the html
+
+```{r}
+
+url <- "https://rsf.org/en/index"
+url_bow <- polite::bow(url)
+url_bow
+
+webpage <- scrape(url_bow)
+```
+
+### Country List
+
+```{r}
+
+country_ranking <- webpage |> 
+  html_nodes(".path-classement .classement-content-map .small-country-list>.country-list .country-list-item__position") |> 
+  html_text()
+
+country_prev_ranking <- webpage |> 
+  html_nodes(".path-classement .classement-content-list table.responsive-enabled tbody tr td div.diff-score, .path-classement .classement-content-list table.responsive-enabled tbody tr td div.diff-rang") |> 
+  html_text()
+
+country_list <- webpage |> 
+  html_nodes(".path-classement .classement-content-map .small-country-list>.country-list .country-list-item__name") |> 
+  html_text()
+
+country_score <- webpage |> 
+  html_nodes(".path-classement .classement-content-map .small-country-list>.country-list .country-list-item__score") |> 
+  html_text()
+
+
+country_press <- tibble(
+  country_prev_ranking = country_prev_ranking,
+  country_ranking = country_ranking,
+  country_name = country_list,
+  country_score = country_score
+    
+  )
+
+country_press <- country_press |> 
+  mutate(country_prev_ranking = as.numeric(country_prev_ranking),
+         country_ranking = as.numeric(country_ranking)) |> 
+  mutate(country_prev_ranking = country_prev_ranking + country_ranking)
+
+```
+
+## Export
+
+```{r}
+
+dir.create(here("world press index/file"))
+
+write_csv(country_press, here("world press index/file/country_ranking.csv"))
+
+
+```
